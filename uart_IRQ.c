@@ -1,0 +1,184 @@
+#include "uart_IRQ.h"
+
+//initialize buffers
+volatile FIFO_TypeDef UART_Rx, UART_Tx;
+
+//******************************************************************************
+
+void NVIC_Configuration(void)
+{
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	/* Configure the NVIC Preemption Priority Bits */
+	//  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
+
+	NVIC_InitStructure.NVIC_IRQChannel = DBG_UART_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x0F;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x0F;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+}
+
+/**************************************************************************************/
+
+void RCC_Configuration(void)
+{
+	/* --------------------------- System Clocks Configuration -----------------*/
+	/* DBG_UART clock enable */
+	RCC_DBG_UART_CLK_INIT(RCC_DBG_UART_CLK, ENABLE);
+
+	/* GPIOD clock enable */
+	RCC_DBG_UART_GPIO_CLK_INIT(RCC_DBG_UART_GPIO_CLK, ENABLE);
+}
+
+/**************************************************************************************/
+
+void GPIO_Configuration(void)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+
+	/*-------------------------- GPIO Configuration ----------------------------*/
+	GPIO_InitStructure.GPIO_Pin = DBG_UART_TX_PIN | DBG_UART_RX_PIN;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(DBG_UART_TX_GPIO_PORT, &GPIO_InitStructure);
+	GPIO_Init(DBG_UART_RX_GPIO_PORT, &GPIO_InitStructure);
+
+	/* Connect USART pins to AF */
+	GPIO_PinAFConfig(DBG_UART_TX_GPIO_PORT, DBG_UART_TX_SOURCE, DBG_UART_GPIO_AF);  // DBG_UART_TX
+	GPIO_PinAFConfig(DBG_UART_RX_GPIO_PORT, DBG_UART_RX_SOURCE, DBG_UART_GPIO_AF);  // DBG_UART_RX
+}
+
+/**************************************************************************************/
+
+void DBG_UART_Configuration(void)
+{
+	USART_InitTypeDef USART_InitStructure;
+
+	/* USARTx configuration ------------------------------------------------------*/
+	/* USARTx configured as follow:
+		- BaudRate = 115200 baud
+		- Word Length = 8 Bits
+		- One Stop Bit
+		- No parity
+		- Hardware flow control disabled (RTS and CTS signals)
+		- Receive and transmit enabled
+	*/
+	USART_InitStructure.USART_BaudRate = 115200;
+	USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+	USART_InitStructure.USART_StopBits = USART_StopBits_1;
+	USART_InitStructure.USART_Parity = USART_Parity_No;
+	USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+
+	USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+
+	USART_Init(DBG_UART, &USART_InitStructure);
+
+	USART_Cmd(DBG_UART, ENABLE);
+	
+	//disable Transmit Data Register empty interrupt
+	USART_ITConfig(DBG_UART, USART_IT_TXE, DISABLE);
+	//enable Receive Data register not empty interrupt
+	USART_ITConfig(DBG_UART, USART_IT_RXNE, ENABLE);
+}
+
+/**************************************************************************************/
+
+void UART_Configuration(void)
+{
+	BufferInit(&UART_Rx);
+	BufferInit(&UART_Tx);
+	
+ 	NVIC_Configuration(); /* Interrupt Config */
+ 	RCC_Configuration();
+ 	GPIO_Configuration();
+	DBG_UART_Configuration();
+}
+
+/**************************************************************************************/
+
+uint8_t UART_ReceiveByte( void )
+{
+	uint8_t byte;
+	while(USART_GetFlagStatus(DBG_UART, USART_IT_RXNE) == RESET);	
+	byte = (uint8_t)USART_ReceiveData(DBG_UART);
+	return byte;
+}
+
+/**************************************************************************************/
+
+#include "discoveryf4utils.h"
+uint16_t UART_ReceiveBuf( uint8_t *Data )
+{
+	uint16_t i = 0;
+	uint8_t byte = 0;
+	
+	while ( ! BufferIsEmpty(UART_Rx) )
+	{
+		BufferGet(&UART_Rx,&byte);
+		Data[i++] = byte;
+	}
+	return i;
+}
+
+/**************************************************************************************/
+
+void UART_TransmitByte(uint8_t byte)
+{
+	while(USART_GetFlagStatus(DBG_UART, USART_FLAG_TXE) == RESET);	
+	USART_SendData(DBG_UART,  (uint16_t)( byte ) );
+}
+
+/**************************************************************************************/
+
+void UART_TransmitByteIT(uint8_t byte)
+{
+	//put char to the buffer
+	BufferPut(&UART_Tx, byte);
+	//enable Transmit Data Register empty interrupt
+	USART_ITConfig(DBG_UART, USART_IT_TXE, ENABLE);
+}
+
+/**************************************************************************************/
+
+void UART_TransmitBuf( uint16_t DataSize, const uint8_t *Data )
+{
+	uint16_t i=0;
+	for( i=0;i<DataSize;i++)
+	{
+		UART_TransmitByteIT( *Data++ );
+	}
+}
+
+/**************************************************************************************/
+
+void DBG_UART_IRQHandler(void)
+{
+	uint8_t	byte;
+	//if Receive interrupt
+	if (USART_GetITStatus(DBG_UART, USART_IT_RXNE) != RESET)
+	{
+		byte = (uint8_t)USART_ReceiveData(DBG_UART);
+		//put char to the buffer
+		BufferPut(&UART_Rx, byte);
+		STM_EVAL_LEDToggle(LED_RED);
+	}
+	if (USART_GetITStatus(DBG_UART, USART_IT_TXE) != RESET)
+	{
+		//STM_EVAL_LEDToggle(LED_BLUE);
+		
+		if (BufferGet(&UART_Tx, &byte) == SUCCESS)//if buffer read
+		{
+			USART_SendData(DBG_UART, byte);
+		}
+		else//if buffer empty
+		{
+			//disable Transmit Data Register empty interrupt
+			USART_ITConfig(DBG_UART, USART_IT_TXE, DISABLE);
+		}
+	}
+}
+
+/**************************************************************************************/
