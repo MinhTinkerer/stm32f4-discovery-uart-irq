@@ -421,6 +421,11 @@
               <FileType>1</FileType>
               <FilePath>..\uart_IRQ.c</FilePath>
             </File>
+            <File>
+              <FileName>xprintf.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\xprintf.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

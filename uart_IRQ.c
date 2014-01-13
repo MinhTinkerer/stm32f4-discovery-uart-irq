@@ -1,5 +1,5 @@
 #include "uart_IRQ.h"
-
+#include "discoveryf4utils.h"
 //initialize buffers
 volatile FIFO_TypeDef UART_Rx, UART_Tx;
 
@@ -12,9 +12,15 @@ void NVIC_Configuration(void)
 	/* Configure the NVIC Preemption Priority Bits */
 	//  NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 
-	NVIC_InitStructure.NVIC_IRQChannel = DBG_UART_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannel = DBG_UART_DMA_STREAM_TX_IRQn;
 	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x0F;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x0F;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+	
+	NVIC_InitStructure.NVIC_IRQChannel = DBG_UART_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x0D;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x0D;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
 }
@@ -29,6 +35,9 @@ void RCC_Configuration(void)
 
 	/* GPIOD clock enable */
 	RCC_DBG_UART_GPIO_CLK_INIT(RCC_DBG_UART_GPIO_CLK, ENABLE);
+	
+	/* dma clock enable */
+	RCC_DBG_UART_DMA_CLK_INIT(RCC_DBG_UART_DMA_CLK, ENABLE);
 }
 
 /**************************************************************************************/
@@ -79,7 +88,7 @@ void DBG_UART_Configuration(void)
 	USART_Cmd(DBG_UART, ENABLE);
 	
 	//disable Transmit Data Register empty interrupt
-	USART_ITConfig(DBG_UART, USART_IT_TXE, DISABLE);
+//	USART_ITConfig(DBG_UART, USART_IT_TXE, DISABLE);
 	//enable Receive Data register not empty interrupt
 	USART_ITConfig(DBG_UART, USART_IT_RXNE, ENABLE);
 }
@@ -97,87 +106,182 @@ void UART_Configuration(void)
 	DBG_UART_Configuration();
 }
 
+// /**************************************************************************************/
+
+// uint8_t UART_ReceiveByte( void )
+// {
+// 	uint8_t byte;
+// 	while(USART_GetFlagStatus(DBG_UART, USART_IT_RXNE) == RESET);	
+// 	byte = (uint8_t)USART_ReceiveData(DBG_UART);
+// 	return byte;
+// }
+
+// /**************************************************************************************/
+
+ uint16_t UART_ReceiveBuf( uint8_t *Data )
+ {
+ 	uint16_t i = 0;
+ 	uint8_t byte = 0;
+ 	
+ 	while ( ! BufferIsEmpty(&UART_Rx) )
+ 	{
+ 		BufferGet(&UART_Rx,&byte);
+ 		Data[i++] = byte;
+ 	}
+ 	return i;
+ }
+
+// /**************************************************************************************/
+
+// void UART_TransmitByte(uint8_t byte)
+// {
+// 	while(USART_GetFlagStatus(DBG_UART, USART_FLAG_TXE) == RESET);	
+// 	USART_SendData(DBG_UART,  (uint16_t)( byte ) );
+// }
+
+// /**************************************************************************************/
+
+// void UART_TransmitByteIT(uint8_t byte)
+// {
+// 	//put char to the buffer
+// 	BufferPut(&UART_Tx, byte);
+// 	//enable Transmit Data Register empty interrupt
+// 	USART_ITConfig(DBG_UART, USART_IT_TXE, ENABLE);
+// }
+
+// /**************************************************************************************/
+
+// void UART_TransmitBuf( uint16_t DataSize, const uint8_t *Data )
+// {
+// 	uint16_t i=0;
+// 	for( i=0;i<DataSize;i++)
+// 	{
+// 		UART_TransmitByteIT( *Data++ );
+// 	}
+// }
+
+// /**************************************************************************************/
+
+ void DBG_UART_IRQHandler(void)
+ {
+ 	uint8_t	byte;
+ 	//if Receive interrupt
+ 	if (USART_GetITStatus(DBG_UART, USART_IT_RXNE) == SET)
+ 	{
+		//USART_ClearFlag(DBG_UART, USART_IT_RXNE);
+ 		byte = (uint8_t)USART_ReceiveData(DBG_UART);
+ 		//put char to the buffer
+ 		BufferPut(&UART_Rx, byte);
+ 		STM_EVAL_LEDToggle(LED_GREEN);
+		//UART_TransmitBuf_DMA((uint8_t*)"QQQ",3);
+ 	}
+// 	if (USART_GetITStatus(DBG_UART, USART_IT_TXE) != RESET)
+// 	{
+// 		//STM_EVAL_LEDToggle(LED_BLUE);
+// 		
+// 		if (BufferGet(&UART_Tx, &byte) == SUCCESS)//if buffer read
+// 		{
+// 			USART_SendData(DBG_UART, byte);
+// 		}
+// 		else//if buffer empty
+// 		{
+// 			//disable Transmit Data Register empty interrupt
+// 			USART_ITConfig(DBG_UART, USART_IT_TXE, DISABLE);
+// 		}
+// 	}
+ }
+
 /**************************************************************************************/
 
-uint8_t UART_ReceiveByte( void )
-{
-	uint8_t byte;
-	while(USART_GetFlagStatus(DBG_UART, USART_IT_RXNE) == RESET);	
-	byte = (uint8_t)USART_ReceiveData(DBG_UART);
-	return byte;
-}
+// void UART_TransmitBuf_DMA( const uint8_t *buf, uint16_t len )
+// {
+// 	DMA_InitTypeDef DMA_InitStructure;
 
-/**************************************************************************************/
+// // 	DMA_DeInit(DBG_UART_DMA_STREAM_RX);
+// // 	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &(DBG_UART->DR);
+// // 	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t) buf;
+// // 	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
+// // 	DMA_InitStructure.DMA_BufferSize = len;
+// // 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+// // 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+// // 	DMA_InitStructure.DMA_PeripheralDataSize =
+// // 					DMA_PeripheralDataSize_Byte;
+// // 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+// // 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+// // 	DMA_InitStructure.DMA_Priority = DMA_Priority_Low;
+// // 	//DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+// // 	DMA_Init(DBG_UART_DMA_STREAM_RX, &DMA_InitStructure);
 
-#include "discoveryf4utils.h"
-uint16_t UART_ReceiveBuf( uint8_t *Data )
+// 	DMA_DeInit(DBG_UART_DMA_STREAM_TX);
+// 	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &(DBG_UART->DR);
+// 	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t) buf;
+// 	DMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+// 	DMA_InitStructure.DMA_BufferSize = len;
+// 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+// 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+// 	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+// 	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+// 	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+// 	DMA_InitStructure.DMA_Priority = DMA_Priority_Low;
+// //	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+// 	DMA_Init(DBG_UART_DMA_STREAM_TX, &DMA_InitStructure);
+
+// 	USART_DMACmd(DBG_UART, USART_DMAReq_Tx, ENABLE); // | USART_DMAReq_Rx
+// 	DMA_Cmd(DBG_UART_DMA_STREAM_TX, ENABLE);
+// //	DMA_Cmd(DBG_UART_DMA_STREAM_RX, ENABLE);
+
+// //	while (DMA_GetFlagStatus(DMA1_FLAG_TC6) == RESET);
+// 	DMA_ITConfig(DBG_UART_DMA_STREAM_TX, DBG_UART_DMA_IT_TC_TX, ENABLE);
+// 	
+// 	
+// 	STM_EVAL_LEDToggle(LED_RED);
+// }
+
+void UART_TransmitBuf_DMA( const uint8_t *buf, uint16_t len )
 {
-	uint16_t i = 0;
-	uint8_t byte = 0;
+	DMA_InitTypeDef DMA_InitStructure;
+
+	while( DMA_GetCurrDataCounter(DBG_UART_DMA_STREAM_TX) != 0 ){};
 	
-	while ( ! BufferIsEmpty(UART_Rx) )
-	{
-		BufferGet(&UART_Rx,&byte);
-		Data[i++] = byte;
-	}
-	return i;
+	DMA_DeInit(DBG_UART_DMA_STREAM_TX);
+	DMA_InitStructure.DMA_Channel = DBG_UART_DMA_CHANNEL;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t) &(DBG_UART->DR);
+	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t) buf;
+	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
+	DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;
+	DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+	DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+	DMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+	DMA_InitStructure.DMA_BufferSize = len;
+	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+	DMA_InitStructure.DMA_Priority = DMA_Priority_Low;
+	DMA_Init(DBG_UART_DMA_STREAM_TX, &DMA_InitStructure);
+	
+	USART_ClearFlag(DBG_UART, USART_FLAG_TC);
+	USART_DMACmd(DBG_UART, USART_DMAReq_Tx, ENABLE);
+	DMA_ITConfig(DBG_UART_DMA_STREAM_TX, DMA_IT_TC, ENABLE);
+	
+	DMA_Cmd(DBG_UART_DMA_STREAM_TX, ENABLE);
+	
 }
 
 /**************************************************************************************/
 
-void UART_TransmitByte(uint8_t byte)
+void DBG_UART_DMA_STREAM_TX_IRQHandler( void )
 {
-	while(USART_GetFlagStatus(DBG_UART, USART_FLAG_TXE) == RESET);	
-	USART_SendData(DBG_UART,  (uint16_t)( byte ) );
-}
-
-/**************************************************************************************/
-
-void UART_TransmitByteIT(uint8_t byte)
-{
-	//put char to the buffer
-	BufferPut(&UART_Tx, byte);
-	//enable Transmit Data Register empty interrupt
-	USART_ITConfig(DBG_UART, USART_IT_TXE, ENABLE);
-}
-
-/**************************************************************************************/
-
-void UART_TransmitBuf( uint16_t DataSize, const uint8_t *Data )
-{
-	uint16_t i=0;
-	for( i=0;i<DataSize;i++)
+	//if TransferComplete interrupt
+	if (DMA_GetITStatus(DBG_UART_DMA_STREAM_TX, DBG_UART_DMA_IT_TC_TX) == SET)
 	{
-		UART_TransmitByteIT( *Data++ );
-	}
-}
-
-/**************************************************************************************/
-
-void DBG_UART_IRQHandler(void)
-{
-	uint8_t	byte;
-	//if Receive interrupt
-	if (USART_GetITStatus(DBG_UART, USART_IT_RXNE) != RESET)
-	{
-		byte = (uint8_t)USART_ReceiveData(DBG_UART);
-		//put char to the buffer
-		BufferPut(&UART_Rx, byte);
-		STM_EVAL_LEDToggle(LED_RED);
-	}
-	if (USART_GetITStatus(DBG_UART, USART_IT_TXE) != RESET)
-	{
-		//STM_EVAL_LEDToggle(LED_BLUE);
-		
-		if (BufferGet(&UART_Tx, &byte) == SUCCESS)//if buffer read
-		{
-			USART_SendData(DBG_UART, byte);
-		}
-		else//if buffer empty
-		{
-			//disable Transmit Data Register empty interrupt
-			USART_ITConfig(DBG_UART, USART_IT_TXE, DISABLE);
-		}
+		DMA_ClearFlag(DBG_UART_DMA_STREAM_TX, DBG_UART_DMA_IT_TC_TX);
+		STM_EVAL_LEDToggle(LED_BLUE);
+		// Disable DMA
+		USART_DMACmd(DBG_UART, USART_DMAReq_Tx, DISABLE);
+		DMA_Cmd(DBG_UART_DMA_STREAM_TX, DISABLE);
+		//USART_DMACmd(DBG_UART, USART_DMAReq_Tx, DISABLE);
 	}
 }
 

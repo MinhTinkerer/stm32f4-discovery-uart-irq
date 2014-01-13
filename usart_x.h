@@ -22,10 +22,12 @@
 #define RCC_DBG_UART_DMA_CLK               RCC_AHB1Periph_DMA1
 #define RCC_DBG_UART_DMA_CLK_INIT          RCC_AHB1PeriphClockCmd
 #define DBG_UART_DMA_CHANNEL               DMA_Channel_4
+
 #define DBG_UART_DMA_IT_TC_RX              DMA_IT_TCIF5
 #define DBG_UART_DMA_STREAM_RX             DMA1_Stream5
 #define DBG_UART_DMA_STREAM_RX_IRQn        DMA1_Stream5_IRQn
 #define DBG_UART_DMA_STREAM_RX_IRQHandler  DMA1_Stream5_IRQHandler
+
 #define DBG_UART_DMA_IT_TC_TX              DMA_IT_TCIF6
 #define DBG_UART_DMA_STREAM_TX             DMA1_Stream6
 #define DBG_UART_DMA_STREAM_TX_IRQn        DMA1_Stream6_IRQn
@@ -62,14 +64,14 @@
 #define RCC_DBG_UART_DMA_CLK               RCC_AHB1Periph_DMA1
 #define RCC_DBG_UART_DMA_CLK_INIT          RCC_AHB1PeriphClockCmd
 #define DBG_UART_DMA_CHANNEL               DMA_Channel_4
-#define DBG_UART_DMA_IT_TC_RX              DMA_IT_TCIF3
-#define DBG_UART_DMA_STREAM_RX             DMA1_Stream3
-#define DBG_UART_DMA_STREAM_RX_IRQn        DMA1_Stream3_IRQn
-#define DBG_UART_DMA_STREAM_RX_IRQHandler  DMA1_Stream3_IRQHandler
-#define DBG_UART_DMA_IT_TC_TX              DMA_IT_TCIF4
-#define DBG_UART_DMA_STREAM_TX             DMA1_Stream4
-#define DBG_UART_DMA_STREAM_TX_IRQn        DMA1_Stream4_IRQn
-#define DBG_UART_DMA_STREAM_TX_IRQHandler  DMA1_Stream4_IRQHandler
+#define DBG_UART_DMA_IT_TC_RX              DMA_IT_TCIF1
+#define DBG_UART_DMA_STREAM_RX             DMA1_Stream1
+#define DBG_UART_DMA_STREAM_RX_IRQn        DMA1_Stream1_IRQn
+#define DBG_UART_DMA_STREAM_RX_IRQHandler  DMA1_Stream1_IRQHandler
+#define DBG_UART_DMA_IT_TC_TX              DMA_IT_TCIF3
+#define DBG_UART_DMA_STREAM_TX             DMA1_Stream3
+#define DBG_UART_DMA_STREAM_TX_IRQn        DMA1_Stream3_IRQn
+#define DBG_UART_DMA_STREAM_TX_IRQHandler  DMA1_Stream3_IRQHandler
 
 #define DBG_UART_TX_PIN                    GPIO_Pin_8
 #define DBG_UART_TX_GPIO_PORT              GPIOD

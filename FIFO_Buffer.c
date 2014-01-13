@@ -29,11 +29,11 @@ ErrorStatus BufferGet(__IO FIFO_TypeDef *buffer, uint8_t *ch)
 	return SUCCESS;
 }
 
-bool BufferIsEmpty(__IO FIFO_TypeDef buffer)
+bool BufferIsEmpty(__IO FIFO_TypeDef *buffer)
 {
 //     if(buffer.count==0)
 //         return true;//buffer full
 //     return false;
-	return buffer.count?false:true;
+	return buffer->count?false:true;
 }
 

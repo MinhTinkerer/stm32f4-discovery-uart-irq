@@ -18,7 +18,7 @@ typedef struct{
 void			BufferInit(		__IO FIFO_TypeDef *buffer);
 ErrorStatus		BufferPut(		__IO FIFO_TypeDef *buffer, uint8_t ch);
 ErrorStatus 	BufferGet(		__IO FIFO_TypeDef *buffer, uint8_t *ch);
-bool 			BufferIsEmpty(	__IO FIFO_TypeDef buffer);
+bool			BufferIsEmpty(	__IO FIFO_TypeDef *buffer);
 
 #endif /* __FIFO_BUFFER_H */
 //******************************************************************************
