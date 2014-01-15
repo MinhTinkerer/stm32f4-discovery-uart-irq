@@ -9,7 +9,9 @@
 #include "discoveryf4utils.h"
 #include "uart_IRQ.h"
 #include "xprintf.h"
+#include "rtc_tim.h"
 //******************************************************************************
+	 
 
 
 //******************************************************************************
@@ -35,9 +37,11 @@ int main(void)
 	
 	UART_Configuration();
 	
-	//xfunc_out = UART_TransmitByteIT;
-	
 	//for(i=0;i<0x00FFFFFF;++i){__NOP();};
+	
+	InitializeTimerRTC();
+	
+	SetRTC(1388534400); //www.unixtimestamp.com/
 	
 	while(1)
 	{
@@ -47,29 +51,24 @@ int main(void)
 		{
 			UART_TransmitBuf_DMA(bufrx, sizerx);
 			STM_EVAL_LEDToggle(LED_RED);
+			PrintTime();
 		}
 	}
 	
-	while(1) /* Infinite loop */
-	{
-		//STM_EVAL_LEDToggle(LED_BLUE);
-		//STM_EVAL_LEDToggle(LED_GREEN);
-		STM_EVAL_LEDToggle(LED_ORANGE);
-		//STM_EVAL_LEDToggle(LED_RED);
-		for(i=0;i<0x000FFFFF;++i){__NOP();};
-
-// 		size = UART_ReceiveBuf(data);
-// 		if( size > 0 )
-// 		{
-// 			UART_TransmitBuf(size,data);
-// 			STM_EVAL_LEDToggle(LED_GREEN);
-// 		}
-		
-		xsprintf(data,"0x%08x\n", j++);
-		for(size=0;data[size];size++){};
-		
-		UART_TransmitBuf_DMA((uint8_t*)data,size);
-	}
+// 	while(1) /* Infinite loop */
+// 	{
+// 		//STM_EVAL_LEDToggle(LED_BLUE);
+// 		//STM_EVAL_LEDToggle(LED_GREEN);
+// 		//STM_EVAL_LEDToggle(LED_ORANGE);
+// 		//STM_EVAL_LEDToggle(LED_RED);
+// 		for(i=0;i<0x000FFFFF;++i){__NOP();};
+// 		xprintf2("%08d\n", j++);
+// 		
+// // 		xsprintf(data,"0x%08x\n", j++);
+// // 		for(size=0;data[size];size++){};
+// // 		
+// // 		UART_TransmitBuf_DMA((uint8_t*)data,size);
+// 	}
 }
 //******************************************************************************
 

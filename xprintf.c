@@ -195,6 +195,26 @@ void xsprintf (			/* Put a formatted string to the memory */
 	outptr = 0;			/* Switch destination for device */
 }
 
+#include "uart_IRQ.h"
+void xprintf2 (			/* Put a formatted string to the memory */
+	const char*	fmt,	/* Pointer to the format string */
+	...					/* Optional arguments */
+)
+{
+	va_list arp;
+	char buff[0xff];
+
+	outptr = buff;		/* Switch destination for memory */
+
+	va_start(arp, fmt);
+	xvprintf(fmt, arp);
+	va_end(arp);
+
+	*outptr = 0;		/* Terminate output string with a \0 */
+	outptr = 0;			/* Switch destination for device */
+	
+	UART_TransmitLine( buff );
+}
 
 void xfprintf (					/* Put a formatted string to the specified device */
 	void(*func)(unsigned char),	/* Pointer to the output function */

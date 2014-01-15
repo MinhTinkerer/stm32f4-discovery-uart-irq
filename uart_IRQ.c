@@ -1,7 +1,7 @@
 #include "uart_IRQ.h"
 #include "discoveryf4utils.h"
 //initialize buffers
-volatile FIFO_TypeDef UART_Rx, UART_Tx;
+volatile FIFO_TypeDef UART_Rx;
 
 //******************************************************************************
 
@@ -95,10 +95,26 @@ void DBG_UART_Configuration(void)
 
 /**************************************************************************************/
 
+void UART_DMA_Receive_Init( void )
+{
+	
+}
+
+void UART_DMA_Receive( void )
+{
+	
+}
+
+bool UART_DMA_Receive_Available( void )
+{
+	return true;
+}
+
+/**************************************************************************************/
+
 void UART_Configuration(void)
 {
 	BufferInit(&UART_Rx);
-	BufferInit(&UART_Tx);
 	
  	NVIC_Configuration(); /* Interrupt Config */
  	RCC_Configuration();
@@ -281,8 +297,16 @@ void DBG_UART_DMA_STREAM_TX_IRQHandler( void )
 		// Disable DMA
 		USART_DMACmd(DBG_UART, USART_DMAReq_Tx, DISABLE);
 		DMA_Cmd(DBG_UART_DMA_STREAM_TX, DISABLE);
-		//USART_DMACmd(DBG_UART, USART_DMAReq_Tx, DISABLE);
 	}
+}
+
+/**************************************************************************************/
+
+void UART_TransmitLine( char* data )
+{
+	uint16_t size = 0;
+	for(size=0;data[size];size++){};
+	UART_TransmitBuf_DMA((uint8_t*)data,size);
 }
 
 /**************************************************************************************/
